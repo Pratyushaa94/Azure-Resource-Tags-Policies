@@ -39,7 +39,7 @@ aws ec2 create-volume --size 8 --region us-east-1 --availability-zone us-east-1a
    ```
    Example:  
    ```
-   arn:aws:ec2:us-east-1:515517371473:volume/vol-0efe9d5419d6128e7
+   arn:aws:ec2:us-east-1:1234571473:volume/vol-0efe9d5419d6128e7
    ```
 
 ---
@@ -125,7 +125,3 @@ terraform apply
 - Check GitHub Actions logs for any automation errors.
 
 ---
-
-## License
-
-MIT
