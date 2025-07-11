@@ -1,127 +1,191 @@
-# AWS EBS Volume Backup Automation with Terraform & GitHub Actions
+# AWS Volume Backup Automation with Terraform & GitHub Actions
 
-This project automates daily backups of an AWS EBS volume using Terraform and GitHub Actions.  
-It provisions all necessary AWS resources and schedules backups at 3 AM UTC, retaining each backup for 30 days.
-
----
-
-## Prerequisites
-
-- **An existing EBS volume** in your AWS account.  
-  If you do not have one, see [How to Create an EBS Volume](#how-to-create-an-ebs-volume).
-- AWS credentials (Access Key ID and Secret Access Key) with permissions to manage IAM, EC2, and AWS Backup.
-- [Terraform](https://www.terraform.io/downloads.html) installed locally (for initial setup/testing).
-- A GitHub repository for this code.
+This project automates **daily Backups of an AWS  volume** using **Terraform** and **GitHub Actions**.  
+It provisions all necessary AWS resources and schedules backups at **3 AM UTC**, retaining each backup for **30 days**.
 
 ---
 
-## How to Create an EBS Volume
+##  Prerequisites
 
-**Via AWS Console:**
-1. Go to the [EC2 Dashboard](https://console.aws.amazon.com/ec2/).
-2. In the left menu, click **Volumes** under **Elastic Block Store**.
-3. Click **Create Volume**.
-4. Choose size, type, and availability zone, then click **Create Volume**.
-5. Note the **Volume ID** (e.g., `vol-0efe9d5419d6128e7`).
+-  An existing EBS volume in your AWS account.  
+  If not, see [How to Create an EBS Volume](#how-to-create-an-ebs-volume).
+-  AWS credentials (Access Key ID and Secret Access Key) with permissions to manage IAM, EC2, and AWS Backup.
+-  Terraform installed locally (for initial setup/testing).
+-  A GitHub repository for this code.
 
-**Via AWS CLI:**
-```sh
+---
+
+##  How to Create an EBS Volume
+
+**Via AWS Console**:
+1. Go to the **EC2 Dashboard**.
+2. Click **Volumes** under **Elastic Block Store**.
+3. Click **Create Volume**, choose size/type/AZ, and click **Create**.
+4. Note the **Volume ID** (e.g., `vol-0efe9d5419d6128e7`).
+
+**Via AWS CLI**:
+```bash
 aws ec2 create-volume --size 8 --region us-east-1 --availability-zone us-east-1a --volume-type gp2
 ```
-- Note the `VolumeId` in the output.
 
-**Get the ARN for your volume:**
-1. Find your AWS Account ID (top right in AWS Console or run:  
-   `aws sts get-caller-identity --query Account --output text`)
-2. Construct the ARN:  
-   ```
-   arn:aws:ec2:us-east-1:YOUR_ACCOUNT_ID:volume/VOLUME_ID
-   ```
-   Example:  
-   ```
-   arn:aws:ec2:us-east-1:1234571473:volume/vol-0efe9d5419d6128e7
-   ```
+**Get the ARN for your volume**:
+```bash
+aws sts get-caller-identity --query Account --output text
+```
+Then construct:
+```
+arn:aws:ec2:us-east-1:YOUR_ACCOUNT_ID:volume/VOLUME_ID
+```
 
----
-
-## How This Works
-
-### Terraform Code
-
-- **IAM Role**: Allows AWS Backup to manage backups on your behalf.
-- **Backup Vault**: Secure storage for your backups.
-- **Backup Plan**: Schedules daily backups at 3 AM UTC, keeps each for 30 days.
-- **Backup Selection**: Specifies which EBS volume to back up (using the ARN you provide).
-
-### What Gets Created
-
-- An IAM role with the correct permissions for AWS Backup.
-- A backup vault named as per your configuration.
-- A backup plan and rule for daily backups.
-- A backup selection that targets your specified EBS volume.
+**Example**:
+```
+arn:aws:ec2:us-east-1:1234571473:volume/vol-0efe9d5419d6128e7
+```
 
 ---
 
-## How to Use
+##  How This Works
 
-### 1. Clone this repository
+| Component         | Purpose                                                  |
+|------------------|----------------------------------------------------------|
+| IAM Role         | Allows AWS Backup to manage EBS backups.                 |
+| Backup Vault     | Secure storage for backup snapshots.                     |
+| Backup Plan      | Defines daily backup at 3 AM UTC, with 30-day retention. |
+| Backup Selection | Specifies which EBS volume to back up (using ARN).       |
 
-```sh
+---
+
+##  What Gets Created
+
+- An IAM role (`pratyusha-backup-role`) with backup permissions.
+- A backup vault named in your `terraform.tfvars`.
+- A daily backup plan with 30-day retention.
+- Backup selection that targets the specified EBS volume.
+
+---
+
+##  How to Use
+
+### 1. Clone the Repository
+
+```bash
 git clone https://github.com/your-username/your-repo.git
 cd your-repo
 ```
 
-### 2. Set the EBS Volume ARN and (optionally) resource names
+### 2. Configure Terraform Variables
 
 Edit `terraform.tfvars`:
 
 ```hcl
 ebs_volume_arn    = "arn:aws:ec2:us-east-1:515517371473:volume/vol-0efe9d5419d6128e7"
-backup_vault_name = "pratyusha-backup-vault"      # Optional, can change
-backup_plan_name  = "pratyusha-daily-backup-plan" # Optional, can change
-backup_rule_name  = "daily-backup"                # Optional, can change
+backup_vault_name = "pratyusha-backup-vault"
+backup_plan_name  = "pratyusha-daily-backup-plan"
+backup_rule_name  = "daily-backup"
 ```
 
-### 3. Initialize and Apply Terraform (optional, for local testing)
+---
 
-```sh
+### 3. Add Collaborators (for repo access)
+
+1. Go to your GitHub repo → **Settings** → **Collaborators**.
+2. Click **Add People** and invite collaborators by GitHub username.
+
+---
+
+### 4. Add GitHub Environments for Manual Approval
+
+1. Go to **Settings** → **Environments** → **New environment**.
+2. Name it `production` (or `dev` as per your branch).
+3. Add **required reviewers** to enforce approval before `terraform apply`.
+
+---
+
+### 5. Set Up GitHub Secrets
+
+Go to **Settings → Secrets and variables → Actions** → New Repository Secret:
+
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `INFRACOST_API_KEY` (get from https://dashboard.infracost.io/) 
+
+---
+
+### 6. Run Locally (Optional)
+
+```bash
 terraform init
 terraform plan
 terraform apply
 ```
 
-### 4. Set Up GitHub Actions for Automation
+---
 
-- Go to your GitHub repository → **Settings** → **Secrets and variables** → **Actions**.
-- Add your AWS credentials as secrets:
-  - `AWS_ACCESS_KEY_ID`
-  - `AWS_SECRET_ACCESS_KEY`
-- The workflow in `.github/workflows/deploy.yml` will automatically run `terraform init`, `plan`, and `apply` on every push to `main`.
+##  GitHub Actions Automation
+
+GitHub Actions (`.github/workflows/deploy.yml`) will:
+
+- Run `terraform init`
+- Run `infracost breakdown` to estimate cost
+- Generate a Terraform plan
+- Pause for manual approval (via environments)
+- Run `terraform apply`
 
 ---
 
-## Where to Check in AWS Console
+##  Cost Estimation with Infracost
 
-- **IAM Role**: [IAM Console → Roles](https://console.aws.amazon.com/iam/) (`pratyusha-backup-role`)
-- **Backup Vault**: [AWS Backup → Backup vaults](https://console.aws.amazon.com/backup/)
-- **Backup Plan**: [AWS Backup → Backup plans](https://console.aws.amazon.com/backup/)
-- **Backup Selection**: In your backup plan details, under "Resource assignments"
-- **Backups**: [AWS Backup → Backup vaults → Your vault → Recovery points](https://console.aws.amazon.com/backup/)
+Integrated with GitHub Actions:
 
----
+```yaml
+- name: Generate Infracost Breakdown
+  run: infracost breakdown --path=. --format=json --out-file=infracost.json
+```
 
-## Notes
-
-- If you do not have an EBS volume, **create one first** as described above.
-- The backup will run automatically at 3 AM UTC every day.
-- You can change the backup schedule or retention in `main.tf` if needed.
+Infracost will estimate monthly costs for your EBS backups in each PR.
 
 ---
 
-## Troubleshooting
+##  Where to Check in AWS Console
 
-- Make sure your AWS credentials have the necessary permissions.
-- If you change the EBS volume, update `terraform.tfvars` and re-apply.
-- Check GitHub Actions logs for any automation errors.
+| Resource         | Console Path                                      |
+|------------------|---------------------------------------------------|
+| IAM Role         | IAM Console → Roles → `pratyusha-backup-role`     |
+| Backup Vault     | AWS Backup → Backup vaults                        |
+| Backup Plan      | AWS Backup → Backup plans                         |
+| Resource Assign  | Backup plan → Resource assignments                |
+| Backups          | Backup vault → Recovery points                    |
+
+---
+
+##  Troubleshooting
+
+###  Error: `EntityAlreadyExists: Role with name pratyusha-backup-role already exists`
+
+This means the IAM role already exists in your AWS account.
+
+ **Fix**:
+
+**Option 1:** Import it into Terraform:
+
+```bash
+terraform import aws_iam_role.backup_role pratyusha-backup-role
+```
+
+**Option 2:** Delete the existing role in AWS Console → IAM → Roles → `pratyusha-backup-role`.
+
+**Option 3:** Rename it in Terraform:
+
+```hcl
+name = "pratyusha-backup-role-unique"
+```
+
+---
+
+##  Backup Schedule
+
+- **Daily at 3 AM UTC**
+- **Retention: 30 days**
+- You can modify these values in `main.tf` inside the backup plan rule.
 
 ---
